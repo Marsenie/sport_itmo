@@ -40,7 +40,7 @@ async def login(page, email, password):
     await page.click("#kc-login")
     await page.wait_for_load_state('networkidle')
 
-async def (page):
+async def exit_account(page):
     """Авторизация"""
     try:
         await page.click(".nav-link.dropdown-toggle")
@@ -257,6 +257,7 @@ async def records():
 
 async def periodic_task():
     """Функция для периодического вызова"""
+    now = datetime.datetime.now()
     target_time = now.replace(hour=0, minute=1, second=0,microsecond=0)
     while True:
         
