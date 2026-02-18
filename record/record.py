@@ -1,5 +1,5 @@
 from record.week.week import get_this_week_num
-from services.postgre_db import add_section_data, get_random_user_data, get_for_records_user_data, get_user_data, login_error
+from services.postgre_db import add_section_data, get_random_user_data, get_for_records_user_data, get_user_data, login_error, del_user_record
 from alerts.alerts import *
 
 import asyncio
@@ -238,7 +238,9 @@ async def records():
                 if len(df) == 1:
                     section_id = df.iloc[0].id
                 else:
+                    del_user_record(rec_dt['user_id'], rec_dt['section_id'])
                     await send_err_record_to_user(user_dt['user_id'], rec_dt['section'], f"Найдено {len(df)} секций по заданным параметрам.")
+
                     continue
 
                 if await record(page, section_id):
