@@ -287,7 +287,7 @@ async def get_section(section: str, coach: str, day_id: int, time_id: int, locat
 
 async def del_all_section_data() -> bool:
     """Удалить данные о секциях"""
-    return await del_command(f"DELETE FROM sections")
+    return await del_command(f"DELETE FROM records; DELETE FROM sections")
 
 
 # таблица BANS
