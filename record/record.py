@@ -64,7 +64,7 @@ async def choose_a_location(page, location):
     await page.click(".multiselect__tags")
     await page.click(f"#{place[location]}")
 
-async def parcing(page, df, location: str):
+async def parsing(page, df, location: str):
     """Парсинг данных"""
     # Получаем все элементы расписания
     items = await page.query_selector_all('.el-calendar-row')
@@ -73,34 +73,39 @@ async def parcing(page, df, location: str):
         for day in range(len(items_in_str)):  # день
             items_in_cell = await items_in_str[day].query_selector_all('.section-block')
             for item in items_in_cell: # ячейка
-                sport_item = await item.query_selector('.sport-item')
-                style = await sport_item.get_attribute('style')
-                if style == 'border-color: rgb(91, 198, 33);':
-                    # Получаем название секции
-                    name_element = await item.query_selector('.d-flex.justify-content-between.align-items-center')
-                    name_sports_section = await name_element.inner_text() if name_element else ""
-                    name_sports_section = name_sports_section.strip()
-                    
-                    # Получаем имя тренера
-                    coach_element = await item.query_selector('.text-sm.text-gray-80')
-                    coach = await coach_element.inner_text() if coach_element else ""
-                    coach = coach.strip()
-                    
-                    # Получаем ID
-                    identifier = await item.get_attribute('id') or ""
-                    
-                    df.loc[len(df)] = {
-                        "Название": name_sports_section,
-                        "Преподаватель": coach,
-                        "День": day + 1,
-                        "Время": time,
-                        "id": identifier,
-                        "location": location
-                    }
+                selectors = ['sport-item cant-sign', '.sport-item']
+                for selector in selectors:
+                    try:
+                        sport_item = await item.query_selector(selector)
+                        style = await sport_item.get_attribute('style')
+                        if style == 'border-color: rgb(91, 198, 33);':
+                            # Получаем название секции
+                            name_element = await item.query_selector('.d-flex.justify-content-between.align-items-center')
+                            name_sports_section = await name_element.inner_text() if name_element else ""
+                            name_sports_section = name_sports_section.strip()
+                            
+                            # Получаем имя тренера
+                            coach_element = await item.query_selector('.text-sm.text-gray-80')
+                            coach = await coach_element.inner_text() if coach_element else ""
+                            coach = coach.strip()
+                            
+                            # Получаем ID
+                            identifier = await item.get_attribute('id') or ""
+                            
+                            df.loc[len(df)] = {
+                                "Название": name_sports_section,
+                                "Преподаватель": coach,
+                                "День": day + 1,
+                                "Время": time,
+                                "id": identifier,
+                                "location": location
+                            }
+                    except:
+                        pass
     
     return df
 
-async def parcing_section(email, password):
+async def parsing_section(email, password):
     """Парсинг данных"""
     playwright, browser, context, page = await create_browser()
 
@@ -125,22 +130,27 @@ async def parcing_section(email, password):
                     items_in_cell = await items_in_str[day].query_selector_all('.section-block')
                     
                     for item in items_in_cell:
-                        sport_item = await item.query_selector('.sport-item')
-                        style = await sport_item.get_attribute('style')
-                        if style == 'border-color: rgb(91, 198, 33);':
-                            # Получаем название секции
-                            name_element = await item.query_selector('.d-flex.justify-content-between.align-items-center')
-                            name_sports_section = await name_element.inner_text() if name_element else ""
-                            name_sports_section = name_sports_section.strip()
-                                
-                            # Получаем имя тренера
-                            coach_element = await item.query_selector('.text-sm.text-gray-80')
-                            coach = await coach_element.inner_text() if coach_element else ""
-                            coach = coach.strip()
-                                
-                            # Получаем ID
-                            #identifier = await item.get_attribute('id') or ""
-                            await add_section_data(name_sports_section, coach, day + 1, str(time), location, is_parsing = True)
+                        selectors = ['sport-item-cant-sign', '.sport-item']
+                        for selector in selectors:
+                            try:
+                                sport_item = await item.query_selector(selector)
+                                style = await sport_item.get_attribute('style')
+                                if style == 'border-color: rgb(91, 198, 33);':
+                                    # Получаем название секции
+                                    name_element = await item.query_selector('.d-flex.justify-content-between.align-items-center')
+                                    name_sports_section = await name_element.inner_text() if name_element else ""
+                                    name_sports_section = name_sports_section.strip()
+                                        
+                                    # Получаем имя тренера
+                                    coach_element = await item.query_selector('.text-sm.text-gray-80')
+                                    coach = await coach_element.inner_text() if coach_element else ""
+                                    coach = coach.strip()
+                                        
+                                    # Получаем ID
+                                    #identifier = await item.get_attribute('id') or ""
+                                    await add_section_data(name_sports_section, coach, day + 1, str(time), location, is_parsing = True)
+                            except:
+                                pass
                             
                 
                 on_even_numbers = (on_even_numbers + 1) % 2
@@ -162,8 +172,8 @@ async def check_records(df, email, password, location: str):
         if location != "Ломо":
             await choose_a_location(page, location)
 
-        await flipping_through(page)
-        return await parcing(page, df, location)
+        await flipping_through(page, times=1)
+        return await parsing(page, df, location)
         
     finally:
         await close_browser(playwright, browser)
@@ -208,7 +218,7 @@ class pars_cache():
             self.ls_time[i] = time.time() - self.cache_ttl
         self.df = pd.DataFrame(columns=["Название", "Преподаватель", "День", "Время", "id", "location"])
 
-    async def get_parcing(self, location: str, update: bool = False):
+    async def get_parsing(self, location: str, update: bool = False):
         user_data = await get_random_user_data()
         email, password = user_data["email"], user_data["password"]
         if time.time() - self.cache_ttl > self.ls_time[location] or update:
@@ -220,7 +230,7 @@ class pars_cache():
             except:
                 # пометка об ошибке
                 await login_error(user_data["user_id"])
-                return await get_parcing(self, location)
+                return await get_parsing(self, location)
         else:
             return self.df
 pars = pars_cache()
@@ -229,7 +239,7 @@ async def records():
     try:
         playwright, browser, context, page = await create_browser()
         for i in place:
-            await pars.get_parcing(location = i, update = True)
+            await pars.get_parsing(location = i, update = True)
             dt_records_user_data = await get_for_records_user_data(get_this_week_num(), datetime.date.today().weekday() + 1)
             for rec_dt in dt_records_user_data:
                 await open_site(page, "https://my.itmo.ru/sport/sign")
@@ -237,7 +247,7 @@ async def records():
                 await login(page, user_dt['email'], user_dt['password'])
                 await flipping_through(page)
                 await choose_a_location(page, rec_dt['location'])
-                df = await pars_cache.get_parcing(pars, location = rec_dt['location'])
+                df = await pars_cache.get_parsing(pars, location = rec_dt['location'])
                 df = df[(df["Название"] == rec_dt['section'])* (df["Преподаватель"] == rec_dt['coach'])* (df["День"] == rec_dt['day_id'])* (df["Время"] == rec_dt['time_id'])* (df["location"] == rec_dt['location'])]
                 if len(df) == 1:
                     section_id = df.iloc[0].id
