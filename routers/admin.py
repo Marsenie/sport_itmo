@@ -3,7 +3,7 @@ from filters.filters import IsAdmin
 from keyboards.builders import main_keyboard, start_keyboard
 from services.ban_storage import BanStorage
 from services.postgre_db import del_all_section_data, get_user_data
-from record.record import parcing_section
+from record.record import parsing_section
 
 from aiogram import Router, types, Bot
 from aiogram.filters import Command
@@ -45,7 +45,7 @@ async def admin_command_help(message: types.Message):
         return await message.answer("Произошли ошибки :(")
     user_data = await get_user_data(message.from_user.id)
     email, password = user_data["email"], user_data["password"] 
-    if await parcing_section(email, password):
+    if await parsing_section(email, password):
         await message.answer("Добавлены новые записи в sections")
     else:
         await message.answer("Произошли ошибки :(")
