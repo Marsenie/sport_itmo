@@ -10,6 +10,13 @@ from aiogram.fsm.context import FSMContext
 
 router = Router()
 
+places = {
+    "1": "онлайн",#онлайн
+    "2": "Ломо", #Ломо
+    "3": "Вяземский",#Вяземский
+    "4": "Другие",#Другие
+}
+
 # Начало
 @router.message(Command("record"))
 async def cmd_book(message: types.Message, state: FSMContext):
@@ -40,12 +47,12 @@ async def back_to_menu(callback_query: types.CallbackQuery, state: FSMContext):
     await callback_query.message.edit_text("🏢 Выберите место проведения:", reply_markup=place_kb)
 
 # Обработчики callback'ов для выбора места
-@router.callback_query(lambda c: c.data in ['Ломо', 'Вяземский', 'онлайн', 'Другие'], RecordStates.PLACE)
+@router.callback_query(lambda c: c.data in ['1', '2', '3', '4'], RecordStates.PLACE)
 # Обработчики кнопок "Назад"
 @router.callback_query(lambda c: c.data == 'Назад', RecordStates.TIME)
 async def process_place(callback_query: types.CallbackQuery, state: FSMContext):
     if callback_query.data != 'Назад':
-        place_name = callback_query.data
+        place_name = places[callback_query.data]
         await state.update_data(place=callback_query.data, place_name=place_name)
     else:
         data = await state.get_data()

@@ -1,7 +1,7 @@
 from record.week.week import get_this_week_num
 from keyboards.callback import *
 from states.unsub_states import UnsubStates
-from services.postgre_db import get_record_data, del_all_user_record, del_user_record, get_record_section_data
+from services.postgre_db import del_all_user_record, del_user_record, get_record_section_data
 
 from aiogram import Router, types, F
 from aiogram.types import Message
