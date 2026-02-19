@@ -18,7 +18,7 @@ place = {
 async def create_browser():
     """Создание браузера и контекста"""
     playwright = await async_playwright().start()
-    browser = await playwright.chromium.launch(headless=False)
+    browser = await playwright.chromium.launch(headless=True)
     context = await browser.new_context()
     page = await context.new_page()
     return playwright, browser, context, page
@@ -265,3 +265,4 @@ async def periodic_task():
         await asyncio.sleep(wait_seconds)
         await asyncio.sleep(30)
         await records()
+
