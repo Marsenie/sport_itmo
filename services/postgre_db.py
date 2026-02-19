@@ -47,15 +47,19 @@ async def init_db():
 
     # таблица с днями
     await run_command('''CREATE TABLE IF NOT EXISTS days (
-                    id SERIAL PRIMARY KEY,
-                    day_id INT NOT NULL UNIQUE,
+                    day_id SERIAL PRIMARY KEY,
                     name_day VARCHAR(16) NOT NULL UNIQUE)''')
 
     # таблица со временем
     await run_command('''CREATE TABLE IF NOT EXISTS time (
-                    id SERIAL PRIMARY KEY,
-                    time_id INT NOT NULL UNIQUE,
+                    time_id SERIAL PRIMARY KEY,
                     name_time VARCHAR(8) NOT NULL UNIQUE)''')
+
+    # таблица со местами
+    await run_command('''CREATE TABLE IF NOT EXISTS locations (
+                    location_id SERIAL PRIMARY KEY,
+                    location_name VARCHAR(16) NOT NULL UNIQUE,
+                    tag VARCHAR(16) NOT NULL)''')
     
     # таблица с секциями
     await run_command('''CREATE TABLE IF NOT EXISTS sections (
@@ -64,7 +68,7 @@ async def init_db():
                     coach VARCHAR(256) NOT NULL,
                     day_id INT NOT NULL REFERENCES days(day_id),
                     time_id INT NOT NULL REFERENCES time(time_id),
-                    location VARCHAR(256) NOT NULL,
+                    location_id INT NOT NULL REFERENCES locations(location_id),
                     is_parsing BOOLEAN NOT NULL,
                     UNIQUE(section, coach, day_id, time_id) ) ''')
 
@@ -77,8 +81,7 @@ async def init_db():
 
      # таблица с видами банов
     await run_command('''CREATE TABLE IF NOT EXISTS reasons (
-                    id SERIAL PRIMARY KEY,
-                    reason_id BIGINT NOT NULL UNIQUE,
+                    reason_id SERIAL PRIMARY KEY,
                     reason_name VARCHAR(128),
                     description VARCHAR(4096),
                     time_ban INT NOT NULL)''')
@@ -103,8 +106,7 @@ async def init_db():
     
     # таблица со статусами
     await run_command('''CREATE TABLE IF NOT EXISTS ticket_statuses (
-                    id SERIAL PRIMARY KEY,
-                    status_id  BIGINT NOT NULL UNIQUE,
+                    status_id  SERIAL PRIMARY KEY,
                     status_name VARCHAR(128),
                     description VARCHAR(4096))''')
     
@@ -139,7 +141,7 @@ async def init_db():
                             (5, 'Пятница'),
                             (6, 'Суббота'),
                             (7, 'Воскресенье')''')
-
+    # Вставляем время
     ans = await run_command("SELECT COUNT(*) FROM time", ans = True)
     if ans[0]['count'] == 0:
         await run_command('''INSERT INTO time (time_id, name_time) VALUES
@@ -151,7 +153,16 @@ async def init_db():
                             (6, '17-19'),
                             (7, '19-21'),
                             (8, '21-23')''')
-        
+
+    # Вставляем места
+    ans = await run_command("SELECT COUNT(*) FROM locations", ans = True)
+    if ans[0]['count'] == 0:
+        await run_command('''INSERT INTO locations (location_id, location_name, tag) VALUES
+                            (1, 'онлайн', 'null-0'),
+                            (2, 'Ломо', 'null-1'),
+                            (3, 'Вяземский', 'null-2'),
+                            (4, 'Другие', 'null-3')''')
+    
     # Вставляем виды банов
     ans = await run_command("SELECT COUNT(*) FROM reasons", ans = True)
     if ans[0]['count'] == 0:
@@ -269,21 +280,21 @@ async def del_user_record(user_id: int, section_id: int):
 
 
 # таблица SECTIONS
-async def add_section_data(section: str, coach: str, day_id: int, time_id: int, location:str, is_parsing: bool = False):
+async def add_section_data(section: str, coach: str, day_id: int, time_id: int, location_id:int, is_parsing: bool = False):
     """Добавить данные пользователя"""
-    return await add_command(f"INSERT INTO sections (section, coach, day_id, time_id, location, is_parsing) VALUES ('{section}', '{coach}', {day_id}, {time_id}, '{location}', {is_parsing})")
+    return await add_command(f"INSERT INTO sections (section, coach, day_id, time_id, location_id, is_parsing) VALUES ('{section}', '{coach}', {day_id}, {time_id}, {location_id}, {is_parsing})")
 
-async def add_get_section_data_return_id(section: str, coach: str, day_id: int, time_id: int, location:str, is_parsing: bool = False):
+async def add_get_section_data_return_id(section: str, coach: str, day_id: int, time_id: int, location_id:int, is_parsing: bool = False):
     """Добавить данные пользователя"""
-    return await get_command(f"INSERT INTO sections (section, coach, day_id, time_id, location, is_parsing) VALUES ('{section}', '{coach}', {day_id}, {time_id}, '{location}', {is_parsing}) RETURNING id")
+    return await get_command(f"INSERT INTO sections (section, coach, day_id, time_id, location_id, is_parsing) VALUES ('{section}', '{coach}', {day_id}, {time_id}, {location_id}, {is_parsing}) RETURNING id")
 
-async def get_section_data(day_id: int, time_id: int, location:str):
+async def get_section_data(day_id: int, time_id: int, location_id:int):
     """Добавить данные пользователя"""
-    return await get_command(f"SELECT * FROM sections WHERE (day_id = {day_id}) and (time_id = {time_id}) and (location = '{location}') and (is_parsing = True)")
+    return await get_command(f"SELECT * FROM sections WHERE (day_id = {day_id}) and (time_id = {time_id}) and (location_id = {location_id}) and (is_parsing = True)")
 
-async def get_section(section: str, coach: str, day_id: int, time_id: int, location:str):
+async def get_section(section: str, coach: str, day_id: int, time_id: int, location_id:int):
     """Добавить данные пользователя"""
-    return await get_command(f"SELECT * FROM sections WHERE (day_id = {day_id}) and (time_id = {time_id}) and (location = '{location}') and (section = 'section') and (coach = 'coach')")
+    return await get_command(f"SELECT * FROM sections WHERE (day_id = {day_id}) and (time_id = {time_id}) and (location_id = {location_id}) and (section = 'section') and (coach = 'coach')")
 
 async def del_all_section_data() -> bool:
     """Удалить данные о секциях"""
