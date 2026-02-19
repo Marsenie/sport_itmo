@@ -9,10 +9,10 @@ import time
 import datetime
 
 place = {
-    "онлайн": "null-0",
-    "Ломо": "null-1", 
-    "Вяземский": "null-2",
-    "Другие": "null-3",
+    "1": "null-0",#онлайн
+    "2": "null-1", #Ломо
+    "3": "null-2",#Вяземский
+    "4": "null-3",#Другие
 }
 
 async def create_browser():
@@ -135,7 +135,7 @@ async def parsing_section(email, password):
                                         coach = coach.strip()   
                                         # Получаем ID
                                         # identifier = await item.get_attribute('id') or ""
-                                        await add_section_data(name_sports_section, coach, day, str(time), location, is_parsing = True)
+                                        await add_section_data(name_sports_section, coach, day, time, location, is_parsing = True)
                                 except:
                                     pass
                 # Пролистываем неделю
