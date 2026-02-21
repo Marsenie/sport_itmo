@@ -1,5 +1,5 @@
 from record.week.week import get_this_week_num
-from services.postgre_db import add_section_data, get_random_user_data, get_for_records_user_data, get_user_data, login_error, del_user_record
+from services.postgre_db import add_section_data, get_random_user_data, get_for_records_user_data, get_user_data, login_error, del_user_record, add_section_data_by_df
 from alerts.alerts import *
 
 import asyncio
@@ -15,10 +15,13 @@ place = {
     "4": "null-3",#Другие
 }
 
+def create_df():
+ return pd.DataFrame(columns=["Название", "Преподаватель", "День", "Время", "id", "location"])
+    
 async def create_browser():
     """Создание браузера и контекста"""
     playwright = await async_playwright().start()
-    browser = await playwright.chromium.launch(headless=True)
+    browser = await playwright.chromium.launch(headless=False)
     context = await browser.new_context()
     page = await context.new_page()
     return playwright, browser, context, page
@@ -64,7 +67,7 @@ async def choose_a_location(page, location):
     await page.click(".multiselect__tags")
     await page.click(f"#{place[location]}")
 
-async def parsing(page, df, location: str):
+async def get_data_from_page(page, df, location: str):
     """Парсинг данных"""
     # Получаем все элементы расписания
     items = await page.query_selector_all('.el-calendar-row')
@@ -92,7 +95,7 @@ async def parsing(page, df, location: str):
                             df.loc[len(df)] = {
                                 "Название": name_sports_section,
                                 "Преподаватель": coach,
-                                "День": day + 1,
+                                "День": day,
                                 "Время": time,
                                 "id": identifier,
                                 "location": location}
@@ -101,49 +104,32 @@ async def parsing(page, df, location: str):
     
     return df
 
-async def parsing_section(email, password):
-    """Парсинг данных"""
+async def start_parsing(email, password, location):
     playwright, browser, context, page = await create_browser()
     try:
         await open_site(page, "https://my.itmo.ru/sport/sign")
         await login(page, email, password)
         
-        for location in place:
-            await choose_a_location(page, location)
-            for _ in range(2):
-                await asyncio.sleep(15)
-                items = await page.query_selector_all('.el-calendar-row')
-                for time in range(1, len(items)):  # время
-                    items_in_str = await items[time].query_selector_all('.el-calendar-cell-content')
-                    for day in range(len(items_in_str)):  # день
-                        items_in_cell = await items_in_str[day].query_selector_all('.section-block')
-                        
-                        for item in items_in_cell:
-                            selectors = ['sport-item-cant-sign', '.sport-item']
-                            for selector in selectors:
-                                try:
-                                    sport_item = await item.query_selector(selector)
-                                    style = await sport_item.get_attribute('style')
-                                    if style == 'border-color: rgb(91, 198, 33);':
-                                        # Получаем название секции
-                                        name_element = await item.query_selector('.d-flex.justify-content-between.align-items-center')
-                                        name_sports_section = await name_element.inner_text() if name_element else ""
-                                        name_sports_section = name_sports_section.strip()   
-                                        # Получаем имя тренера
-                                        coach_element = await item.query_selector('.text-sm.text-gray-80')
-                                        coach = await coach_element.inner_text() if coach_element else ""
-                                        coach = coach.strip()   
-                                        # Получаем ID
-                                        # identifier = await item.get_attribute('id') or ""
-                                        await add_section_data(name_sports_section, coach, day, time, location, is_parsing = True)
-                                except:
-                                    pass
-                # Пролистываем неделю
-                await flipping_through(page, times = 1)
-            await flipping_through(page, direction="back")
-        return True
+        await choose_a_location(page, location)
+        for _ in range(2):
+            df = await get_data_from_page(page, create_df(), location)#####говно
+            # Пролистываем неделю
+            await flipping_through(page, times = 1)
+            
+        #await flipping_through(page, direction="back")
+        return df
+    
     finally:
         await close_browser(playwright, browser)
+        
+async def parsing_section(email, password):
+    """Парсинг данных"""
+    tasks = [asyncio.create_task(start_parsing(email, password, location)) for location in place]
+    ls_df = await asyncio.gather(*tasks, return_exceptions=True)
+    df_all = pd.concat(ls_df, ignore_index=True)
+    df_all = df_all.drop_duplicates()
+    await add_section_data_by_df(df_all, is_parsing = True)
+    return True
                 
 
 async def get_records(df, email, password, location: str):
@@ -154,11 +140,11 @@ async def get_records(df, email, password, location: str):
         await open_site(page, "https://my.itmo.ru/sport/sign")
         await login(page, email, password)
         
-        if location != "Ломо":
+        if location != "2":#Ломо
             await choose_a_location(page, location)
 
         await flipping_through(page, times=1)
-        return await parsing(page, df, location)
+        return await get_data_from_page(page, df, location)
         
     finally:
         await close_browser(playwright, browser)
@@ -201,7 +187,7 @@ class pars_cache():
         self.ls_time = place.copy()
         for i in self.ls_time:
             self.ls_time[i] = time.time() - self.cache_ttl
-        self.df = pd.DataFrame(columns=["Название", "Преподаватель", "День", "Время", "id", "location"])
+        self.df = create_df()
 
     async def get_parsing(self, location: str, update: bool = False):
         if time.time() - self.cache_ttl > self.ls_time[location] or update:
@@ -265,4 +251,3 @@ async def periodic_task():
         await asyncio.sleep(wait_seconds)
         await asyncio.sleep(30)
         await records()
-
