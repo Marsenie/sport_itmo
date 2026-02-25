@@ -17,5 +17,7 @@ async def send_err_record_to_user(user_id, section:str, info:str = 'Отсутв
                                f'Доп информация:\n{info}')
                                
 async def send_success_record_to_user(user_id, section:str):
-    await send_message_to_user(user_id,
-                               f'Вы записались на секцию: {section}')
+    await send_message_to_user(user_id, f'Вы записались на секцию: {section}')
+    
+async def send_answer_suport(user_id, text:str):
+    await send_message_to_user(user_id, text)
