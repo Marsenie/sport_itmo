@@ -39,7 +39,7 @@ async def init_db():
                 isu INT NOT NULL,
                 name VARCHAR(256) NOT NULL,
                 login_error BOOLEAN,
-                data TIMESTAMP NOT NULL DEFAULT now(),
+                date TIMESTAMP NOT NULL DEFAULT now(),
                 UNIQUE(user_id, email) ) ''')
 
     # Создаем индекс
@@ -92,7 +92,7 @@ async def init_db():
                     user_id BIGINT NOT NULL REFERENCES users(user_id),
                     reason_id BIGINT NOT NULL REFERENCES reasons(reason_id),
                     msg VARCHAR(4096) NOT NULL,
-                    data TIMESTAMP NOT NULL DEFAULT now(),
+                    date TIMESTAMP NOT NULL DEFAULT now(),
                     valid BOOLEAN NOT NULL DEFAULT False)''')
 
     # таблица с админами
@@ -102,7 +102,7 @@ async def init_db():
                     username VARCHAR(32) NOT NULL,
                     email VARCHAR(254) NOT NULL UNIQUE,
                     name VARCHAR(256) NOT NULL,
-                    data TIMESTAMP NOT NULL DEFAULT now())''')
+                    date TIMESTAMP NOT NULL DEFAULT now())''')
     
     # таблица со статусами
     await run_command('''CREATE TABLE IF NOT EXISTS ticket_statuses (
@@ -119,7 +119,7 @@ async def init_db():
                     status_id BIGINT NOT NULL REFERENCES ticket_statuses(status_id),
                     feedback_score INT,
                     feedback VARCHAR(4096),
-                    data TIMESTAMP NOT NULL DEFAULT now())''')
+                    date TIMESTAMP NOT NULL DEFAULT now())''')
     
     # таблица с сообщениями 
     await run_command('''CREATE TABLE IF NOT EXISTS ticket_msg (
@@ -128,7 +128,7 @@ async def init_db():
                     msg VARCHAR(4096) NOT NULL,
                     is_send BOOLEAN NOT NULL DEFAULT False,
                     is_from_admin BOOLEAN NOT NULL,
-                    data TIMESTAMP NOT NULL DEFAULT now())''')
+                    date TIMESTAMP NOT NULL DEFAULT now())''')
 
     # Вставляем дни
     ans = await run_command("SELECT COUNT(*) FROM days", ans = True)
@@ -235,6 +235,11 @@ async def get_for_records_user_data(period: int, day_id: int):
     """Получить все данные пользователя"""
     return await get_command(f'SELECT * FROM records r JOIN sections s ON s.id = r.section_id WHERE (period in (2, {period})) and (day_id = {day_id});')
 
+async def get_count_user():
+    """Получить все данные пользователя"""
+    data = await get_command(f'SELECT COUNT(*) FROM users')
+    return data[0]['count']
+    
 async def get_user_data(user_id: int):
     """Получить все данные пользователя"""
     data = await get_command(f'SELECT * FROM users WHERE user_id = {user_id}')
@@ -283,6 +288,13 @@ async def del_user_record(user_id: int, section_id: int):
 async def add_section_data(section: str, coach: str, day_id: int, time_id: int, location_id:int, is_parsing: bool = False):
     """Добавить данные пользователя"""
     return await add_command(f"INSERT INTO sections (section, coach, day_id, time_id, location_id, is_parsing) VALUES ('{section}', '{coach}', {day_id}, {time_id}, {location_id}, {is_parsing})")
+
+async def add_section_data_by_df(df, is_parsing: bool = False):
+    """Добавить данные пользователя"""
+    command = "INSERT INTO sections (section, coach, day_id, time_id, location_id, is_parsing) VALUES "
+    command += ",".join([f"('{i[0]}', '{i[1]}', {i[2]}, {i[3]}, {i[5]}, {is_parsing})" for i in df.values])
+    return await add_command(command)
+
 
 async def add_get_section_data_return_id(section: str, coach: str, day_id: int, time_id: int, location_id:int, is_parsing: bool = False):
     """Добавить данные пользователя"""
@@ -334,11 +346,12 @@ async def get_user_ticket(user_id: int):
 
 async def update_tickets_issue_admin(admin_id: int, lim: int = 10):
     """Добавить данные пользователя"""
-    return await add_command(f"UPDATE tickets set status_id = 2, admin_id = {admin_id} WHERE status_id = 1 ORDER BY data LIMIT {lim}")
+    return await add_command(f"""WITH to_update AS (SELECT ctid FROM tickets WHERE status_id = 1 ORDER BY date LIMIT {lim} FOR UPDATE)
+                                UPDATE tickets SET status_id = 2, admin_id = {admin_id} FROM to_update WHERE tickets.ctid = to_update.ctid;""")
 
 async def get_admin_tickets(admin_id: int, lim: int = 15):
     """Добавить данные пользователя"""
-    return await get_command(f"SELECT * FROM tickets (status_id in (2, 4)) and (admin_id = {admin_id}) ORDER BY data LIMIT {lim}")
+    return await get_command(f"SELECT * FROM tickets WHERE (status_id in (2, 4)) and (admin_id = {admin_id}) ORDER BY date LIMIT {lim}")
 
 
 # таблица TICKET_MSG
@@ -357,5 +370,3 @@ async def get_not_send_ticket_msg():
 async def update_is_seng_ticket_msg(ticket_id: int):
     """Добавить данные пользователя"""
     return await add_command(f"UPDATE ticket_msg SET is_seng = True WHERE ticket_id = {ticket_id}")
-
-

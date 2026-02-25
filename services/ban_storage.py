@@ -37,3 +37,4 @@ class BanStorage:
         data[str(user_id)] = current_time + minutes * 60
         await self.write_all(data)
 
+
