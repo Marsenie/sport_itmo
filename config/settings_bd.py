@@ -14,6 +14,7 @@ class Config(BaseSettings):
     DB_NAME: str = Field(validation_alias='DB_NAME')
     DB_USER: str = Field(validation_alias='DB_USER')
     DB_PASSWORD: str = Field(validation_alias='DB_PASSWORD')
+    BACKUP_PATH: str = Field(validation_alias='BACKUP_PATH')
 
     _env_path = Path(__file__).resolve().parent / '.env'
     model_config = SettingsConfigDict(env_file=str(_env_path),  # path to your .env
