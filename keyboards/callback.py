@@ -82,6 +82,11 @@ sub_adm_kb_list = [
 ]
 sub_adm_kb = InlineKeyboardMarkup(inline_keyboard=sub_adm_kb_list)
 
+sub_adm_get_list = [
+    [InlineKeyboardButton(text='Активные тикеты', callback_data='Активные тикеты')],
+]
+sub_adm_get_kb = InlineKeyboardMarkup(inline_keyboard=sub_adm_get_list)
+
 def make_kb_list(ls, last_btn):
     kb_list = []
     for i in range(len(ls)):
