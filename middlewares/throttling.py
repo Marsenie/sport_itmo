@@ -22,29 +22,26 @@ class MiddlewareAntiSpam(BaseMiddleware):
         super().__init__()
 
     async def __call__(self, handler, message: types.Message, data: dict):
+        await self.ban_storage.update()
         self.banned_users = await self.ban_storage._read_all()
         current_time = time.time()
         user_id = str(message.from_user.id)
+        msg = message.text.strip()
 
-        # Проверка SQL инъекций
-        if not(await validate(message.text.strip())):
-            # Бан
-            self.banned_users[user_id] = current_time + 172800 # 2 дня в секундах
-            await self.ban_storage.write_all(self.banned_users)
-            return await message.answer("Попытка SQL инъекции.\n\nВы забанены до проверки модерацией(не более 2 дней).")
-            
-            
         # Проверка бана
         if user_id in self.banned_users:
             if current_time < self.banned_users[user_id]:
                 # если забанен
-                return await message.answer("Вы отправляете сообщения слишком часто. Пожалуйста, подождите.")    
+                return await message.answer("Вы забанены.")    
             else:
                 # Бан закончился
                 del self.banned_users[user_id]
-                self.user_message_times[user_id] = []
                 await self.ban_storage.write_all(self.banned_users)
+                self.user_message_times[user_id] = []
+                return await handler(message, data)
+                
 
+        
         # Очистка старых сообщений
         self.user_message_times[user_id] = [
             t for t in self.user_message_times[user_id] 
@@ -54,11 +51,17 @@ class MiddlewareAntiSpam(BaseMiddleware):
         # Добавление времени сообщения
         self.user_message_times[user_id].append(current_time)
 
+        # Проверка SQL инъекций
+        if not(await validate(msg)):
+            # Бан
+            await self.ban_storage.ban_user(user_id, msg, 3)
+            return await message.answer("Попытка SQL инъекции.\n\nВы забанены до проверки модерацией(не более 2 дней).")
+            
+          
         # Проверка лимита
         if len(self.user_message_times[user_id]) > self.max_messages:
             # Бан
-            self.banned_users[user_id] = current_time + self.ban_time
-            await self.ban_storage.write_all(self.banned_users)
-            return await message.answer(f"Слишком много сообщений.\nПодождите {self.ban_time} секунд.")
+            await self.ban_storage.ban_user(user_id, msg, 1)
+            return await message.answer(f"Слишком много сообщений.\nПодождите 120 секунд.")
         
         return await handler(message, data)
