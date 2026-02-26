@@ -3,7 +3,7 @@ from aiogram.types import InlineKeyboardMarkup
 
 place_kb_list = [
     [InlineKeyboardButton(text='Ломо', callback_data='2'), InlineKeyboardButton(text='Вязьма', callback_data='3')],
-    [InlineKeyboardButton(text='онлайн', callback_data='1'), InlineKeyboardButton(text='Другие', callback_data='4')],
+    #[InlineKeyboardButton(text='онлайн', callback_data='1'), InlineKeyboardButton(text='Другие', callback_data='4')],
     [InlineKeyboardButton(text='Назад', callback_data='Назад')]
 ]
 place_kb = InlineKeyboardMarkup(inline_keyboard=place_kb_list)
