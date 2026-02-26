@@ -2,8 +2,8 @@ from record.week.week import get_this_week_num
 from services.postgre_db import add_section_data, get_random_user_data, get_for_records_user_data, get_user_data, login_error, del_user_record, add_section_data_by_df
 from services.buckup_db import create_backup
 from alerts.alerts import *
+from services.crypto import decrypt_password
 
-import random
 import asyncio
 from playwright.async_api import async_playwright
 import pandas as pd
@@ -11,10 +11,10 @@ import time
 import datetime
 
 place = {
-    "1": "null-0",#онлайн
+    #"1": "null-0",#онлайн
     "2": "null-1", #Ломо
     "3": "null-2",#Вяземский
-    "4": "null-3",#Другие
+    #"4": "null-3",#Другие
 }
 
 def create_df():
@@ -40,6 +40,7 @@ async def open_site(page, url):
 
 async def login(page, email, password):
     """Авторизация"""
+    password = decrypt_password(password)
     await page.fill("#username", email)
     await page.fill("#password", password)
     await page.click("#kc-login")
@@ -106,10 +107,11 @@ async def get_data_from_page(page, df, location: str):
     
     return df
 
-async def start_parsing(email, password, location, flipping=2):
+async def start_parsing(email, password, location, time: int, flipping=2):
     playwright, browser, context, page = await create_browser()
     try:
         await open_site(page, "https://my.itmo.ru/sport/sign")
+        await asyncio.sleep(time*2)
         await login(page, email, password)
         await choose_a_location(page, location)
         
@@ -125,19 +127,17 @@ async def start_parsing(email, password, location, flipping=2):
         
 async def parsing_section(email, password):
     """Парсинг данных"""
-    tasks = [asyncio.create_task(start_parsing(email, password, location)) for location in place]
+    tasks = [asyncio.create_task(start_parsing(email, password, location, int(location))) for location in place]
     ls_df = await asyncio.gather(*tasks, return_exceptions=True)
     df_all = pd.concat(ls_df, ignore_index=True)
     df_all = df_all.drop_duplicates()
     await add_section_data_by_df(df_all, is_parsing = True)
-    return True
                 
 
 async def get_sections(email, password, location: str):
     """получение id секций"""
     playwright, browser, context, page = await create_browser()
     try:
-        await asyncio.sleep(random.randint(0, 3))
         await open_site(page, "https://my.itmo.ru/sport/sign")
         await login(page, email, password)
         await choose_a_location(page, location)
@@ -182,9 +182,9 @@ async def record(page, section_id):
 
     
 class pars_cache():
-    def __init__(self, cache_ttl: int = 4000):
+    def __init__(self, cache_ttl: int = 40000):
         self.cache_ttl = cache_ttl
-        self.time = time.time() - self.cache_ttl#place.copy()
+        self.time = time.time() - self.cache_ttl
         self.df = create_df()
 
     async def get_parsing(self, update: bool = False):
