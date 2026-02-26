@@ -1,3 +1,5 @@
+from services.postgre_db import add_ban_user, get_ban_user
+
 import aiofiles
 import asyncio
 import json
@@ -7,6 +9,8 @@ import time
 
 class BanStorage:
     def __init__(self, filepath: str):
+        self.cache_update = 60
+        self.time_last_update = time.time() - self.cache_update
         self.filepath = Path(filepath)
         # создаём папки, если их нет
         self.filepath.parent.mkdir(parents=True, exist_ok=True)
@@ -31,10 +35,20 @@ class BanStorage:
                 await f.write(json.dumps(data, ensure_ascii=False, indent=2))
 
 
-    async def ban_user(self, user_id: int, minutes: int):
+    async def ban_user(self, user_id: str, msg: str, reason_id: int):
         current_time = time.time()
         data = await self._read_all()
-        data[str(user_id)] = current_time + minutes * 60
+        data[user_id] = current_time + self.cache_update * 2
         await self.write_all(data)
-
+        await add_ban_user(user_id, msg, reason_id)
+        
+    async def update(self):
+        current_time = time.time()
+        if current_time - self.cache_update > self.time_last_update:
+            ban_user = await get_ban_user()
+            data =  {}
+            for i in ban_user:
+                data[i['user_id']] = current_time + self.cache_update * 2
+            self.time_last_update = time.time()
+            await self.write_all(data)
 

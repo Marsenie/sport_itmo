@@ -1,4 +1,6 @@
 from config.settings_bd import bd_config
+from config.settings_admins import admins_config
+from services.crypto import encrypt_password
 
 import random
 import asyncpg
@@ -35,7 +37,7 @@ async def init_db():
                 user_id BIGINT NOT NULL UNIQUE,
                 username VARCHAR(32) NOT NULL,
                 email VARCHAR(254) NOT NULL,
-                password VARCHAR(64) NOT NULL,
+                password VARCHAR(512) NOT NULL,
                 isu INT NOT NULL,
                 name VARCHAR(256) NOT NULL,
                 login_error BOOLEAN,
@@ -85,7 +87,7 @@ async def init_db():
                     reason_name VARCHAR(128),
                     description VARCHAR(4096),
                     time_ban INT NOT NULL)''')
-    
+
     # таблица с банами
     await run_command('''CREATE TABLE IF NOT EXISTS bans (
                     id SERIAL PRIMARY KEY,
@@ -99,9 +101,9 @@ async def init_db():
     await run_command('''CREATE TABLE IF NOT EXISTS admins (
                     id SERIAL PRIMARY KEY,
                     admin_id BIGINT NOT NULL UNIQUE,
-                    username VARCHAR(32) NOT NULL,
-                    email VARCHAR(254) NOT NULL UNIQUE,
-                    name VARCHAR(256) NOT NULL,
+                    username VARCHAR(32),
+                    email VARCHAR(254),
+                    name VARCHAR(256),
                     date TIMESTAMP NOT NULL DEFAULT now())''')
     
     # таблица со статусами
@@ -167,7 +169,7 @@ async def init_db():
     ans = await run_command("SELECT COUNT(*) FROM reasons", ans = True)
     if ans[0]['count'] == 0:
         await run_command('''INSERT INTO reasons (reason_id, reason_name, description, time_ban) VALUES
-                            (1, 'Спам', 'Отправка большого количества сообщений', 30),
+                            (1, 'Спам', 'Отправка большого количества сообщений', 120),
                             (2, 'Спам', 'Многократная отправка большого количества сообщений', 31536000),
                             (3, 'SQL-инъекция', 'Отправка сообщения c sql командой, выдаётся автоматически', 172800),
                             (4, 'SQL-инъекция', 'Выдаётся в ручную', 31536000)''')
@@ -182,6 +184,10 @@ async def init_db():
                             (4, 'Возобновлено', 'Пользователь возобновил обращение'),
                             (5, 'Закрыто', 'Закрыто после возобновления'),
                             (6, 'Закрыто окончательно', 'Закрыто без права пользователя на возобновлие тикета')''')
+
+    admin_list = admins_config.settings_admins
+    for admin in admin_list:
+        await run_command(f'INSERT INTO admins (admin_id) VALUES ({admin})')
     
     logger.info("PostgreSQL база данных инициализирована")
 
@@ -217,6 +223,7 @@ async def del_command(command: str):
 # таблица USERS
 async def add_user_data(user_id: int, email: str, password: str, username: str, isu: int, name: str) -> bool:
     """Добавить данные пользователя"""
+    password = encrypt_password(password)
     return await add_command(f"INSERT INTO users (user_id, email, password, username, isu, name, login_error) VALUES ({user_id}, '{email}', '{password}', '{username}', {isu}, '{name}', False)")
 
 async def login_error(user_id: int):
@@ -316,11 +323,11 @@ async def del_all_section_data() -> bool:
 # таблица BANS
 async def add_ban_user(user_id: int, msg: str, reason_id: int):
     """Добавить данные пользователя"""
-    return await get_command(f"INSERT INTO bans (user_id, msg, reason_id) VALUES ('{user_id}', '{msg}', {reason_id})")
+    return await get_command(f"INSERT INTO bans (user_id, msg, reason_id) VALUES ({user_id}, '{msg}', {reason_id})")
 
-async def get_ban_user(reason_id: int):
+async def get_ban_user():
     """Добавить данные пользователя"""
-    return await get_command(f"SELECT * FROM bans WHERE (reason_id = {reason_id}) and (valid = False)")
+    return await get_command(f"SELECT user_id FROM bans b JOIN reasons r ON b.reason_id = r.reason_id WHERE (b.date + (INTERVAL '1 second' * r.time_ban)) > NOW()")
 
 
 # таблица TICKETS
@@ -370,3 +377,16 @@ async def get_not_send_ticket_msg():
 async def update_is_seng_ticket_msg(ticket_id: int):
     """Добавить данные пользователя"""
     return await add_command(f"UPDATE ticket_msg SET is_seng = True WHERE ticket_id = {ticket_id}")
+
+
+async def main():
+    data = await get_ban_user()
+    for i in data:
+        print(i['user_id'])
+        print(type(i['user_id']))
+
+
+if __name__ == "__main__":
+    import asyncio
+    asyncio.run(main())
+    
