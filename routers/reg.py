@@ -1,6 +1,7 @@
 from states.reg_states import RegistrationStates
 from services.postgre_db import add_user_data, get_user_data, del_user_data
 from record.record import get_isu_and_name
+from services.crypto import encrypt_password
 
 from aiogram.fsm.context import FSMContext
 from aiogram.filters import Command
@@ -12,8 +13,7 @@ router = Router()
 @router.message(Command('reg'))
 async def cmd_reg(message: types.Message, state: FSMContext):
     if await get_user_data(message.from_user.id) != []:
-        await message.answer("Вы уже указали все данные, если хотите их поменять, то сначала сотрите их /del")
-        return
+        return await message.answer("Вы уже указали все данные, если хотите их поменять, то сначала сотрите их /del")
     await message.answer("Введите ваш email:")
     await state.set_state(RegistrationStates.waiting_for_email)
 
@@ -23,8 +23,7 @@ async def process_email(message: types.Message, state: FSMContext):
     email = message.text.strip()
     # Простая валидация email
     if '@' not in email or '.' not in email:
-        await message.answer("Пожалуйста, введите корректный email:")
-        return
+        return await message.answer("Пожалуйста, введите корректный email:")
     
     # Сохраняем email в состоянии
     await state.update_data(email=email)
@@ -35,8 +34,7 @@ async def process_email(message: types.Message, state: FSMContext):
 # Обработчик ввода пароля
 @router.message(RegistrationStates.waiting_for_password)
 async def process_password(message: types.Message, state: FSMContext):
-    password = message.text.strip()
-    
+    password = encrypt_password(message.text.strip())
     # Получаем данные из состояния
     user_data = await state.get_data()
     email = user_data['email']
@@ -53,5 +51,4 @@ async def process_password(message: types.Message, state: FSMContext):
         return
     # Вызываем вашу функцию для добавления пользователя
     await add_user_data(user_id, email, password, username, isu, name)
-    
     await message.answer("Регистрация завершена! Ваши данные сохранены.")

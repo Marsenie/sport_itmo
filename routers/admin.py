@@ -47,10 +47,12 @@ async def admin_command_help(message: types.Message):
         return await message.answer("Произошли ошибки :(")
     user_data = await get_user_data(message.from_user.id)
     email, password = user_data["email"], user_data["password"] 
-    if await parsing_section(email, password):
+    try:
+        await parsing_section(email, password)
         await message.answer("Добавлены новые записи в sections")
-    else:
+    except Exception as e:
         await message.answer("Произошли ошибки :(")
+        raise e
 
 @router.message(IsAdmin(), Command("count"))
 async def admin_command_help(message: types.Message):
