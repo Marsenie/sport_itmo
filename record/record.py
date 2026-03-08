@@ -233,7 +233,7 @@ async def records():
 async def record_main():
     """Функция для периодического вызова"""
     now = datetime.datetime.now()
-    target_time = now.replace(hour=18, minute=7, second=10,microsecond=0)
+    target_time = now.replace(hour=0, minute=0, second=20,microsecond=0)
     while True:
         now = datetime.datetime.now()
         # Ждем до 00:01
@@ -244,4 +244,5 @@ async def record_main():
         #бэкап бд
         create_backup()
         await records()
+
 
