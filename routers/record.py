@@ -211,7 +211,7 @@ async def process_confirmation(message: types.Message, state: FSMContext):
     data_section = await get_section(section, data['coach'], data['day'], data['time'], data['place'])
     if data_section == []:
         data_section = await add_get_section_data_return_id(section, data['coach'], data['day'], data['time'], data['place'])
-    section_id = data_section[0]['id']
+    section_id = data_section[0]['id']  
     if section_id not in [i['section_id'] for i in data['record_data']]:
         if await add_record_data(message.from_user.id, section_id, data['week']):
             await message.answer("Готово!")
