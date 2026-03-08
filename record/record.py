@@ -18,7 +18,7 @@ place = {
 }
 
 def create_df():
- return pd.DataFrame(columns=["Название", "Преподаватель", "День", "Время", "id", "location"])
+ return pd.DataFrame(columns=["Название", "Преподаватель", "День", "Время", "location", "id"])
     
 async def create_browser():
     """Создание браузера и контекста"""
@@ -44,7 +44,8 @@ async def login(page, email, password):
     await page.fill("#username", email)
     await page.fill("#password", password)
     await page.click("#kc-login")
-    await page.wait_for_load_state('networkidle')
+    await asyncio.sleep(1)
+    #await page.wait_for_load_state('networkidle')
 
 async def exit_account(page):
     """Авторизация"""
@@ -100,26 +101,30 @@ async def get_data_from_page(page, df, location: str):
                                 "Преподаватель": coach,
                                 "День": day,
                                 "Время": time,
-                                "id": identifier,
-                                "location": location}
+                                "location": location,
+                                "id": identifier}
                     except:
                         pass
     
     return df
 
-async def start_parsing(email, password, location, time: int, flipping=2):
+async def start_parsing(email, password, last_week=False):
     playwright, browser, context, page = await create_browser()
     try:
         await open_site(page, "https://my.itmo.ru/sport/sign")
-        await asyncio.sleep(time*2)
         await login(page, email, password)
-        await choose_a_location(page, location)
-        
-        for _ in range(flipping):
-            df = await get_data_from_page(page, create_df(), location)
-            # Пролистываем неделю
-            await flipping_through(page, times = 1)
-            
+        df = create_df()
+        for location in place:
+            await choose_a_location(page, location)
+            await flipping_through(page, times = 2)
+            for _ in range(2):
+                df = pd.concat([df, await get_data_from_page(page, create_df(), location)], ignore_index=True)
+                # Пролистываем неделю
+                await flipping_through(page, times = 1, direction="back")
+                if last_week:
+                    await flipping_through(page, times = 1, direction="back")
+                    break
+            await asyncio.sleep(12)
         return df
     
     finally:
@@ -127,27 +132,11 @@ async def start_parsing(email, password, location, time: int, flipping=2):
         
 async def parsing_section(email, password):
     """Парсинг данных"""
-    tasks = [asyncio.create_task(start_parsing(email, password, location, int(location))) for location in place]
-    ls_df = await asyncio.gather(*tasks, return_exceptions=True)
-    df_all = pd.concat(ls_df, ignore_index=True)
-    df_all = df_all.drop_duplicates()
-    await add_section_data_by_df(df_all, is_parsing = True)
-                
+    df = await start_parsing(email, password)
+    df = df.drop('id', axis=1)
+    df = df.drop_duplicates()
+    await add_section_data_by_df(df, is_parsing = True)
 
-async def get_sections(email, password, location: str):
-    """получение id секций"""
-    playwright, browser, context, page = await create_browser()
-    try:
-        await open_site(page, "https://my.itmo.ru/sport/sign")
-        await login(page, email, password)
-        await choose_a_location(page, location)
-        await flipping_through(page)
-        
-        df = await get_data_from_page(page, create_df(), location) 
-        return df
-        
-    finally:
-        await close_browser(playwright, browser)
 
 async def get_isu_and_name(email, password):
     try:
@@ -174,7 +163,9 @@ async def record(page, section_id):
     """Запись на занятие"""
     try:
         await page.click(f"#{section_id}")
+        await asyncio.sleep(3)
         await page.click(".text-primary.font-weight-semibold.text-sm.cursor-pointer.mt-2")
+        await asyncio.sleep(3)
         return True
     except:
         return False
@@ -182,7 +173,7 @@ async def record(page, section_id):
 
     
 class pars_cache():
-    def __init__(self, cache_ttl: int = 40000):
+    def __init__(self, cache_ttl: int = 20000):
         self.cache_ttl = cache_ttl
         self.time = time.time() - self.cache_ttl
         self.df = create_df()
@@ -193,9 +184,7 @@ class pars_cache():
                 user_data = await get_random_user_data()
                 email, password = user_data["email"], user_data["password"]
                 
-                tasks = [asyncio.create_task(get_sections(email, password, location)) for location in place]
-                ls_df = await asyncio.gather(*tasks, return_exceptions=True)
-                self.df = pd.concat(ls_df, ignore_index=True)
+                self.df = await start_parsing(email, password, last_week=True)
                 self.time = time.time()
                 return self.df
             except:
@@ -211,38 +200,40 @@ async def records():
     try:
         df = await pars.get_parsing(update = True)
         playwright, browser, context, page = await create_browser()
-        for i in place:
-            df = await pars.get_parsing()
-            dt_records_user_data = await get_for_records_user_data(get_this_week_num(), datetime.date.today().weekday() + 1)
-            for rec_dt in dt_records_user_data:
-                await open_site(page, "https://my.itmo.ru/sport/sign")
-                user_dt = await get_user_data(rec_dt['user_id'])
-                await login(page, user_dt['email'], user_dt['password'])
-                await flipping_through(page)
-                await choose_a_location(page, rec_dt['location'])
-                df = df[(df["Название"] == rec_dt['section'])* (df["Преподаватель"] == rec_dt['coach'])* (df["День"] == rec_dt['day_id'])* (df["Время"] == rec_dt['time_id'])* (df["location"] == rec_dt['location'])]
-                if len(df) == 1:
-                    section_id = df.iloc[0].id
-                else:
-                    del_user_record(rec_dt['user_id'], rec_dt['section_id'])
-                    await send_err_record_to_user(user_dt['user_id'], rec_dt['section'], f"Найдено {len(df)} секций по заданным параметрам.")
+        df = await pars.get_parsing()
+        dt_records_user_data = await get_for_records_user_data(get_this_week_num(), datetime.date.today().weekday() + 1)
+        for rec_dt in dt_records_user_data:
+            user_dt = await get_user_data(rec_dt['user_id'])
+            print(df[(df["Название"] == rec_dt['section'])* (df["Преподаватель"] == rec_dt['coach'])* (df["День"] == rec_dt['day_id'])].iloc[0])
+            print('----')
+            print(rec_dt)
+            section_df = df[(df["Название"] == rec_dt['section'])* (df["Преподаватель"] == rec_dt['coach'])* (df["День"] == rec_dt['day_id'])* (df["Время"] == rec_dt['time_id'])* (df["location"] == str(rec_dt['location_id']))]
+            if len(section_df) == 1:
+                section_id = section_df.iloc[0].id
+            else:
+                #del_user_record(rec_dt['user_id'], rec_dt['section_id'])
+                await send_err_record_to_user(user_dt['user_id'], rec_dt['section'], f"Найдено {len(section_df)} секций по заданным параметрам.")
+                continue
 
-                    continue
-
-                if await record(page, section_id):
-                    await send_success_record_to_user(user_dt['user_id'], rec_dt['section'])
-                else:
-                    await send_err_record_to_user(user_dt['user_id'], rec_dt['section'])
-                if await exit_account(page):
-                    #Логирование
-                    pass
+            await open_site(page, "https://my.itmo.ru/sport/sign")
+            await login(page, user_dt['email'], user_dt['password'])
+            await flipping_through(page)
+            await choose_a_location(page, str(rec_dt['location_id']))
+            
+            if await record(page, section_id):
+                await send_success_record_to_user(user_dt['user_id'], rec_dt['section'])
+            else:
+                await send_err_record_to_user(user_dt['user_id'], rec_dt['section'])
+            if await exit_account(page):
+                #Логирование
+                pass
     finally:
         await close_browser(playwright, browser)
 
 async def record_main():
     """Функция для периодического вызова"""
     now = datetime.datetime.now()
-    target_time = now.replace(hour=0, minute=0, second=40,microsecond=0)
+    target_time = now.replace(hour=18, minute=7, second=10,microsecond=0)
     while True:
         now = datetime.datetime.now()
         # Ждем до 00:01
