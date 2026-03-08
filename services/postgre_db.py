@@ -312,7 +312,7 @@ async def get_section_data(day_id: int, time_id: int, location_id:int):
 
 async def get_section(section: str, coach: str, day_id: int, time_id: int, location_id:int):
     """Добавить данные пользователя"""
-    return await get_command(f"SELECT * FROM sections WHERE (day_id = {day_id}) and (time_id = {time_id}) and (location_id = {location_id}) and (section = 'section') and (coach = 'coach')")
+    return await get_command(f"SELECT * FROM sections WHERE (day_id = {day_id}) and (time_id = {time_id}) and (location_id = {location_id}) and (section = '{section}') and (coach = '{coach}')")
 
 async def del_all_section_data() -> bool:
     """Удалить данные о секциях"""
