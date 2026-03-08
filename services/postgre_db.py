@@ -221,10 +221,9 @@ async def del_command(command: str):
 
 
 # таблица USERS
-async def add_user_data(user_id: int, email: str, password: str, username: str, isu: int, name: str) -> bool:
+async def add_user_data(user_id: int, email: str, crypto_password: str, username: str, isu: int, name: str) -> bool:
     """Добавить данные пользователя"""
-    password = encrypt_password(password)
-    return await add_command(f"INSERT INTO users (user_id, email, password, username, isu, name, login_error) VALUES ({user_id}, '{email}', '{password}', '{username}', {isu}, '{name}', False)")
+    return await add_command(f"INSERT INTO users (user_id, email, password, username, isu, name, login_error) VALUES ({user_id}, '{email}', '{crypto_password}', '{username}', {isu}, '{name}', False)")
 
 async def login_error(user_id: int):
     try:
@@ -299,7 +298,7 @@ async def add_section_data(section: str, coach: str, day_id: int, time_id: int, 
 async def add_section_data_by_df(df, is_parsing: bool = False):
     """Добавить данные пользователя"""
     command = "INSERT INTO sections (section, coach, day_id, time_id, location_id, is_parsing) VALUES "
-    command += ",".join([f"('{i[0]}', '{i[1]}', {i[2]}, {i[3]}, {i[5]}, {is_parsing})" for i in df.values])
+    command += ",".join([f"('{i[0]}', '{i[1]}', {i[2]}, {i[3]}, {i[4]}, {is_parsing})" for i in df.values])
     return await add_command(command)
 
 
@@ -389,4 +388,5 @@ async def main():
 if __name__ == "__main__":
     import asyncio
     asyncio.run(main())
-    
+
+
