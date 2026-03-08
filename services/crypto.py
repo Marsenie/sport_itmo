@@ -26,3 +26,5 @@ def decrypt_password(encrypted_password: str) -> str:
     decrypted = cipher.decrypt(encrypted_password.encode())
     return decrypted.decode()
 
+
+
