@@ -49,12 +49,8 @@ async def login(page, email, password):
 
 async def exit_account(page):
     """Авторизация"""
-    try:
-        await page.click(".nav-link.dropdown-toggle")
-        await page.click(".bi-logout.dd-icon.b-icon.bi.text-danger")
-        return True
-    except:
-        return False
+    await page.click(".nav-link.dropdown-toggle")
+    await page.click(".bi-logout.dd-icon.b-icon.bi.text-danger")
     
 async def flipping_through(page, direction="forward", times=2):
     """Перелистывание страниц"""
@@ -96,13 +92,7 @@ async def get_data_from_page(page, df, location: str):
                             coach = coach.strip()
                             # Получаем ID
                             identifier = await item.get_attribute('id') or ""
-                            df.loc[len(df)] = {
-                                "Название": name_sports_section,
-                                "Преподаватель": coach,
-                                "День": day,
-                                "Время": time,
-                                "location": location,
-                                "id": identifier}
+                            df.loc[len(df)] = {"Название": name_sports_section, "Преподаватель": coach, "День": day, "Время": time, "location": location, "id": identifier}
                     except:
                         pass
     
@@ -155,23 +145,17 @@ async def get_isu_and_name(email, password):
         
     finally:
         await close_browser(playwright, browser)
-        if isu != "":
-            return isu, name
-        return "", ""
+        return isu, name
 
 async def record(page, section_id):
     """Запись на занятие"""
     try:
         await page.click(f"#{section_id}")
-        await asyncio.sleep(3)
         await page.click(".text-primary.font-weight-semibold.text-sm.cursor-pointer.mt-2")
-        await asyncio.sleep(3)
         return True
     except:
         return False
-    
 
-    
 class pars_cache():
     def __init__(self, cache_ttl: int = 20000):
         self.cache_ttl = cache_ttl
@@ -183,12 +167,10 @@ class pars_cache():
             try:
                 user_data = await get_random_user_data()
                 email, password = user_data["email"], user_data["password"]
-                
                 self.df = await start_parsing(email, password, last_week=True)
                 self.time = time.time()
                 return self.df
             except:
-                # пометка об ошибке
                 await login_error(user_data["user_id"])
                 return await self.get_parsing(self, location)
         else:
@@ -204,9 +186,6 @@ async def records():
         dt_records_user_data = await get_for_records_user_data(get_this_week_num(), datetime.date.today().weekday() + 1)
         for rec_dt in dt_records_user_data:
             user_dt = await get_user_data(rec_dt['user_id'])
-            print(df[(df["Название"] == rec_dt['section'])* (df["Преподаватель"] == rec_dt['coach'])* (df["День"] == rec_dt['day_id'])].iloc[0])
-            print('----')
-            print(rec_dt)
             section_df = df[(df["Название"] == rec_dt['section'])* (df["Преподаватель"] == rec_dt['coach'])* (df["День"] == rec_dt['day_id'])* (df["Время"] == rec_dt['time_id'])* (df["location"] == str(rec_dt['location_id']))]
             if len(section_df) == 1:
                 section_id = section_df.iloc[0].id
@@ -224,9 +203,8 @@ async def records():
                 await send_success_record_to_user(user_dt['user_id'], rec_dt['section'])
             else:
                 await send_err_record_to_user(user_dt['user_id'], rec_dt['section'])
-            if await exit_account(page):
-                #Логирование
-                pass
+            await exit_account(page)
+            
     finally:
         await close_browser(playwright, browser)
 
@@ -236,7 +214,6 @@ async def record_main():
     target_time = now.replace(hour=0, minute=0, second=20,microsecond=0)
     while True:
         now = datetime.datetime.now()
-        # Ждем до 00:01
         if now >= target_time:
             target_time += datetime.timedelta(days=1)
         wait_seconds = (target_time - now).total_seconds()
@@ -244,5 +221,4 @@ async def record_main():
         #бэкап бд
         create_backup()
         await records()
-
 
