@@ -23,7 +23,7 @@ def create_df():
 async def create_browser():
     """Создание браузера и контекста"""
     playwright = await async_playwright().start()
-    browser = await playwright.chromium.launch(headless=True)
+    browser = await playwright.chromium.launch(headless=False)
     context = await browser.new_context()
     page = await context.new_page()
     return playwright, browser, context, page
@@ -48,16 +48,16 @@ async def login(page, email, password):
     #await page.wait_for_load_state('networkidle')
 
 async def exit_account(page):
-    """Авторизация"""
+    """Выход из аккауета"""
     await page.click(".nav-link.dropdown-toggle")
     await page.click(".bi-logout.dd-icon.b-icon.bi.text-danger")
     
 async def flipping_through(page, direction="forward", times=2):
     """Перелистывание страниц"""
     if direction == "forward":
-        selector = '//*[@id="__layout"]/div/div[1]/div/div[2]/div/div/div[4]/div/div/div[1]/div[1]/span/div/button[2]/span'
+        selector = '.uil.uil-angle-right-b'
     else:
-        selector = '//*[@id="__layout"]/div/div[1]/div/div[2]/div/div/div[4]/div/div/div[1]/div[1]/span/div/button[1]/span'
+        selector = '.uil.uil-angle-left-b'
     
     for _ in range(times):
         await page.click(selector)
@@ -134,8 +134,9 @@ async def get_isu_and_name(email, password):
         playwright, browser, context, page = await create_browser()
         await open_site(page, "https://my.itmo.ru/sport/sign")
         await login(page, email, password)
-
+                
         #сбор данных
+        await page.wait_for_selector('.text-muted.navbar-user-id', state='visible', timeout=15000)
         isu_element = await page.query_selector('.text-muted.navbar-user-id')
         isu = await isu_element.inner_text() if isu_element else ""
         isu = isu.strip()
