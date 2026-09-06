@@ -26,7 +26,7 @@ class MiddlewareAntiSpam(BaseMiddleware):
         self.banned_users = await self.ban_storage._read_all()
         current_time = time.time()
         user_id = str(message.from_user.id)
-        msg = message.text.strip()
+        msg = message.text.strip() if message.text else ""
 
         # Проверка бана
         if user_id in self.banned_users:

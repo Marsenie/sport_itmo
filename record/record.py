@@ -136,7 +136,7 @@ async def get_isu_and_name(email, password):
         await login(page, email, password)
                 
         #сбор данных
-        await page.wait_for_selector('.text-muted.navbar-user-id', state='visible', timeout=15000)
+        await page.wait_for_timeout(2500)
         isu_element = await page.query_selector('.text-muted.navbar-user-id')
         isu = await isu_element.inner_text() if isu_element else ""
         isu = isu.strip()
