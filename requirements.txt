@@ -8,3 +8,4 @@ asyncpg==0.30.0
 playwright
 pandas
 cryptography
+aiohttp-socks
