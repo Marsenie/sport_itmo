@@ -10,6 +10,7 @@ class Config(BaseSettings):
     # чтобы затем присвоить его значение переменной telegram_api_key
     # подробнее https://docs.pydantic.dev/latest/concepts/fields/#field-aliases
     telegram_api_key: str = Field(validation_alias='telegram-api-key')
+    PROXY_URL: str = Field(validation_alias='PROXY_URL')
 
     _env_path = Path(__file__).resolve().parent / '.env'
     model_config = SettingsConfigDict(env_file=str(_env_path),  # path to your .env

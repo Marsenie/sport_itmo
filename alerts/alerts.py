@@ -1,8 +1,6 @@
 from config.settings_bot import bot_config
 
-from aiogram import Bot
-
-bot = Bot(token=bot_config.telegram_api_key)
+from bot import bot
 
 async def send_message_to_user(user_id: int, text: str):
     try:
