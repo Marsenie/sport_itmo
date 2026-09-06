@@ -1,18 +1,16 @@
-from config.settings_bot import bot_config
 from routers import commands, admin, support, reg, record, delete, unsub, sup_admin
 from record.record import record_main
 from utils.logger import *
+from bot import bot
 
-from aiogram import Bot, Dispatcher
 from aiogram.fsm.storage.memory import MemoryStorage
 from middlewares.throttling import MiddlewareAntiSpam
-
+from aiogram import Dispatcher
 import asyncio
 
 
 
 async def bot_main():
-    bot = Bot(token=bot_config.telegram_api_key)
     storage = MemoryStorage()
     dp = Dispatcher(storage=storage)
 
@@ -34,7 +32,6 @@ async def bot_main():
         dp.start_polling(bot),
         record_main()
         )
-        
 
 
 if __name__ == "__main__":
