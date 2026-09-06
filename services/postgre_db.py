@@ -253,6 +253,11 @@ async def get_user_data(user_id: int):
         return []
     return data[0]
 
+async def get_list_users():
+    data = await get_command(f'SELECT user_id FROM users')
+    data = [data[i]['user_id'] for i in range(len(data))]
+    return data
+
 async def get_random_user_data():
     """Получить все данные пользователя"""
     data = await get_command(f'SELECT * FROM users where login_error = false')
