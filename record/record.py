@@ -23,8 +23,8 @@ def create_df():
 async def create_browser():
     """Создание браузера и контекста"""
     playwright = await async_playwright().start()
-    browser = await playwright.chromium.launch(headless=False)
-    context = await browser.new_context()
+    browser = await playwright.chromium.launch(headless=True)
+    context = await browser.new_context(user_agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36")
     page = await context.new_page()
     return playwright, browser, context, page
 
@@ -136,7 +136,7 @@ async def get_isu_and_name(email, password):
         await login(page, email, password)
                 
         #сбор данных
-        await page.wait_for_timeout(2500)
+        await page.wait_for_timeout(8000)
         isu_element = await page.query_selector('.text-muted.navbar-user-id')
         isu = await isu_element.inner_text() if isu_element else ""
         isu = isu.strip()
@@ -180,39 +180,47 @@ class pars_cache():
 pars = pars_cache()
 
 async def records():
-    try:
-        df = await pars.get_parsing(update = True)
-        playwright, browser, context, page = await create_browser()
-        df = await pars.get_parsing()
-        dt_records_user_data = await get_for_records_user_data(get_this_week_num(), datetime.date.today().weekday() + 1)
-        for rec_dt in dt_records_user_data:
+    df = await pars.get_parsing(update = True)
+    dt_records_user_data = await get_for_records_user_data(get_this_week_num(), datetime.date.today().weekday() + 1)
+    
+    semaphore = asyncio.Semaphore(5)  # Ограничитель параллельных задач
+    
+    async def process_record(rec_dt):
+        async with semaphore:
             user_dt = await get_user_data(rec_dt['user_id'])
             section_df = df[(df["Название"] == rec_dt['section'])* (df["Преподаватель"] == rec_dt['coach'])* (df["День"] == rec_dt['day_id'])* (df["Время"] == rec_dt['time_id'])* (df["location"] == str(rec_dt['location_id']))]
+            
             if len(section_df) == 1:
                 section_id = section_df.iloc[0].id
+                await record(user_dt, str(rec_dt['location_id']), section_id)
             else:
-                #del_user_record(rec_dt['user_id'], rec_dt['section_id'])
                 await send_err_record_to_user(user_dt['user_id'], rec_dt['section'], f"Найдено {len(section_df)} секций по заданным параметрам.")
-                continue
-
-            await open_site(page, "https://my.itmo.ru/sport/sign")
-            await login(page, user_dt['email'], user_dt['password'])
-            await flipping_through(page)
-            await choose_a_location(page, str(rec_dt['location_id']))
+    
+    # Создаем задачи для всех записей
+    tasks = [process_record(rec_dt) for rec_dt in dt_records_user_data]
+    await asyncio.gather(*tasks)
             
-            if await record(page, section_id):
-                await send_success_record_to_user(user_dt['user_id'], rec_dt['section'])
-            else:
-                await send_err_record_to_user(user_dt['user_id'], rec_dt['section'])
-            await exit_account(page)
-            
+    
+async def record(user_dt, location, section_id):
+    try:
+        playwright, browser, context, page = await create_browser()
+        await open_site(page, "https://my.itmo.ru/sport/sign")
+        await login(page, user_dt['email'], user_dt['password'])
+        await page.wait_for_timeout(3000)
+        await flipping_through(page)
+        await choose_a_location(page, location)
+        await page.wait_for_timeout(3000)
+        if await record(page, section_id):
+            await send_success_record_to_user(user_dt['user_id'], rec_dt['section'])
+        await exit_account(page)
     finally:
+        await send_err_record_to_user(user_dt['user_id'], rec_dt['section'])
         await close_browser(playwright, browser)
-
+    
 async def record_main():
     """Функция для периодического вызова"""
     now = datetime.datetime.now()
-    target_time = now.replace(hour=0, minute=0, second=20,microsecond=0)
+    target_time = now.replace(hour=0, minute=0, second=10,microsecond=0)
     while True:
         now = datetime.datetime.now()
         if now >= target_time:
@@ -220,6 +228,6 @@ async def record_main():
         wait_seconds = (target_time - now).total_seconds()
         await asyncio.sleep(wait_seconds)
         #бэкап бд
-        create_backup()
+        #create_backup()
         await records()
 
