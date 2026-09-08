@@ -23,7 +23,13 @@ def create_df():
 async def create_browser():
     """Создание браузера и контекста"""
     playwright = await async_playwright().start()
-    browser = await playwright.chromium.launch(headless=True)
+    browser = await playwright.chromium.launch(headless=True,
+    args=[
+        '--disable-gpu',
+        '--disable-dev-shm-usage',
+        '--disable-ipv6'       # Если долго грузится сам сайт, а не браузер
+    ]
+    ))
     context = await browser.new_context(user_agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36")
     page = await context.new_page()
     return playwright, browser, context, page
