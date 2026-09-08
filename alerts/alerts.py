@@ -12,7 +12,7 @@ async def send_err_record_to_user(user_id, section:str, info:str = 'Отсутв
     await send_message_to_user(user_id,
                                'Попытка записать на секцию не удалась\n'
                                f'Название секции: {section}\n\n'
-                               f'Доп информация:\n{info}')
+                               f'Доп информация:\n{info[-700:]}')
                                
 async def send_success_record_to_user(user_id, section:str):
     await send_message_to_user(user_id, f'Вы записались на секцию: {section}')

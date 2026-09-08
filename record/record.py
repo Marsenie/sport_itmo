@@ -28,8 +28,7 @@ async def create_browser():
         '--disable-gpu',
         '--disable-dev-shm-usage',
         '--disable-ipv6'       # Если долго грузится сам сайт, а не браузер
-    ]
-    ))
+    ])
     context = await browser.new_context(user_agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36")
     page = await context.new_page()
     return playwright, browser, context, page
@@ -198,30 +197,30 @@ async def records():
             
             if len(section_df) == 1:
                 section_id = section_df.iloc[0].id
-                await record(user_dt, str(rec_dt['location_id']), section_id)
+                try:
+                    playwright, browser, context, page = await create_browser()
+                    await open_site(page, "https://my.itmo.ru/sport/sign")
+                    await login(page, user_dt['email'], user_dt['password'])
+                    await page.wait_for_timeout(3000)
+                    await flipping_through(page)
+                    await choose_a_location(page, str(rec_dt['location_id']))
+                    await page.wait_for_timeout(3000)
+                    if await record(page, section_id):
+                        await send_success_record_to_user(user_dt['user_id'], rec_dt['section'])
+                    await exit_account(page)
+                except Exception as e:
+                    await send_err_record_to_user(user_dt['user_id'], rec_dt['section'], info=str(e))
+                finally:
+                    await close_browser(playwright, browser)
             else:
                 await send_err_record_to_user(user_dt['user_id'], rec_dt['section'], f"Найдено {len(section_df)} секций по заданным параметрам.")
+        
     
     # Создаем задачи для всех записей
     tasks = [process_record(rec_dt) for rec_dt in dt_records_user_data]
-    await asyncio.gather(*tasks)
+    await asyncio.gather(*tasks, return_exceptions=True)
             
-    
-async def record(user_dt, location, section_id):
-    try:
-        playwright, browser, context, page = await create_browser()
-        await open_site(page, "https://my.itmo.ru/sport/sign")
-        await login(page, user_dt['email'], user_dt['password'])
-        await page.wait_for_timeout(3000)
-        await flipping_through(page)
-        await choose_a_location(page, location)
-        await page.wait_for_timeout(3000)
-        if await record(page, section_id):
-            await send_success_record_to_user(user_dt['user_id'], rec_dt['section'])
-        await exit_account(page)
-    finally:
-        await send_err_record_to_user(user_dt['user_id'], rec_dt['section'])
-        await close_browser(playwright, browser)
+
     
 async def record_main():
     """Функция для периодического вызова"""
