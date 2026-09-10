@@ -227,7 +227,7 @@ async def records():
 async def record_main():
     """Функция для периодического вызова"""
     now = datetime.datetime.now()
-    target_time = now.replace(hour=20, minute=0, second=10,microsecond=0)
+    target_time = now.replace(hour=0, minute=0, second=10,microsecond=0)
     while True:
         now = datetime.datetime.now()
         if now >= target_time:
