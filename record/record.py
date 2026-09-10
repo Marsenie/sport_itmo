@@ -1,6 +1,6 @@
 from record.week.week import get_this_week_num
 from services.postgre_db import add_section_data, get_random_user_data, get_for_records_user_data, get_user_data, login_error, del_user_record, add_section_data_by_df
-from services.buckup_db import create_backup
+from services.backup_db import create_backup
 from alerts.alerts import *
 from services.crypto import decrypt_password
 
@@ -49,8 +49,7 @@ async def login(page, email, password):
     await page.fill("#username", email)
     await page.fill("#password", password)
     await page.click("#kc-login")
-    await asyncio.sleep(1)
-    #await page.wait_for_load_state('networkidle')
+    await page.wait_for_load_state('networkidle')
 
 async def exit_account(page):
     """Выход из аккауета"""
@@ -141,7 +140,8 @@ async def get_isu_and_name(email, password):
         await login(page, email, password)
                 
         #сбор данных
-        await page.wait_for_timeout(8000)
+        #await page.wait_for_timeout(3000)
+        await page.wait_for_load_state('networkidle')
         isu_element = await page.query_selector('.text-muted.navbar-user-id')
         isu = await isu_element.inner_text() if isu_element else ""
         isu = isu.strip()
@@ -178,7 +178,7 @@ class pars_cache():
                 return self.df
             except:
                 await login_error(user_data["user_id"])
-                return await self.get_parsing(self, location)
+                return await self.get_parsing(self)
         else:
             return self.df
 
@@ -201,10 +201,12 @@ async def records():
                     playwright, browser, context, page = await create_browser()
                     await open_site(page, "https://my.itmo.ru/sport/sign")
                     await login(page, user_dt['email'], user_dt['password'])
-                    await page.wait_for_timeout(3000)
+                    #await page.wait_for_timeout(3000)
+                    await page.wait_for_load_state('networkidle')
                     await flipping_through(page)
                     await choose_a_location(page, str(rec_dt['location_id']))
-                    await page.wait_for_timeout(3000)
+                    #await page.wait_for_timeout(3000)
+                    await page.wait_for_load_state('networkidle')
                     if await record(page, section_id):
                         await send_success_record_to_user(user_dt['user_id'], rec_dt['section'])
                     await exit_account(page)
@@ -225,7 +227,7 @@ async def records():
 async def record_main():
     """Функция для периодического вызова"""
     now = datetime.datetime.now()
-    target_time = now.replace(hour=0, minute=0, second=10,microsecond=0)
+    target_time = now.replace(hour=20, minute=0, second=10,microsecond=0)
     while True:
         now = datetime.datetime.now()
         if now >= target_time:

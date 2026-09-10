@@ -2,6 +2,7 @@ from record.week.week import get_this_week_num
 from keyboards.callback import *
 from states.record_states import RecordStates
 from services.postgre_db import get_section, get_section_data, add_record_data, get_record_data, add_get_section_data_return_id
+from keyboards.builders import main_keyboard
 
 from aiogram import Router, types, F
 from aiogram.filters import Command
@@ -33,7 +34,7 @@ async def cmd_book(message: types.Message, state: FSMContext):
         await message.answer(
                 "Сначала отпишитесь от секций.\n"
                 "Максимум можно записаться на 4 одновременно.\n\n"
-                f"Вы записаны на {len(record_data)} из 4. Отписаться /unsubscribe")
+                f"Вы записаны на {len(record_data)} из 4. Отписаться /unsub")
 
 @router.callback_query(lambda c: c.data == 'Назад', RecordStates.PLACE)
 async def back_to_menu(callback_query: types.CallbackQuery, state: FSMContext):
@@ -214,7 +215,7 @@ async def process_confirmation(message: types.Message, state: FSMContext):
     section_id = data_section[0]['id']  
     if section_id not in [i['section_id'] for i in data['record_data']]:
         if await add_record_data(message.from_user.id, section_id, data['week']):
-            await message.answer("Готово!")
+            await message.answer("Готово!", reply_markup=main_keyboard)
         else:
             await message.answer("Ошибка внесения записи в бд :( ")
     else:

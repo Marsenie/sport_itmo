@@ -2,6 +2,7 @@ from states.reg_states import RegistrationStates
 from services.postgre_db import add_user_data, get_user_data, del_user_data
 from record.record import get_isu_and_name
 from services.crypto import encrypt_password
+from keyboards.builders import main_keyboard
 
 from aiogram.fsm.context import FSMContext
 from aiogram.filters import Command
@@ -28,7 +29,7 @@ async def process_email(message: types.Message, state: FSMContext):
     # Сохраняем email в состоянии
     await state.update_data(email=email)
     
-    await message.answer("Теперь введите пароль:")
+    await message.answer("Теперь введите пароль:\nНЕ РЕКОМЕНДУЕТСЯ СМЕНИТЬ ПАРОЛЬ от my itmo, если вы где-то его ещё используете. Он хранится в защифрованном виде")
     await state.set_state(RegistrationStates.waiting_for_password)
 
 # Обработчик ввода пароля
@@ -40,7 +41,7 @@ async def process_password(message: types.Message, state: FSMContext):
     email = user_data['email']
 
     # Предупреждаем об ожидании
-    await message.answer("Подождите, проверяем корректность данных.")
+    await message.answer("Подождите, проверяем корректность данных.", reply_markup=main_keyboard)
     # Получаем информацию о пользователе
     user_id = str(message.from_user.id)
     username = message.from_user.username or message.from_user.first_name or "Unknown"
