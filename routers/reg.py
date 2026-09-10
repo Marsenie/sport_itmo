@@ -29,7 +29,7 @@ async def process_email(message: types.Message, state: FSMContext):
     # Сохраняем email в состоянии
     await state.update_data(email=email)
     
-    await message.answer("Теперь введите пароль:\nНЕ РЕКОМЕНДУЕТСЯ СМЕНИТЬ ПАРОЛЬ от my itmo, если вы где-то его ещё используете. Он хранится в защифрованном виде")
+    await message.answer("Теперь введите пароль:\nРЕКОМЕНДУЕТСЯ СМЕНИТЬ ПАРОЛЬ от my itmo, если вы где-то его ещё используете. Он хранится в защифрованном виде")
     await state.set_state(RegistrationStates.waiting_for_password)
 
 # Обработчик ввода пароля
