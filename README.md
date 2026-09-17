@@ -11,6 +11,7 @@ sudo apt install postgresql
 
 #### Установите playwright и браузер
 sudo apt install playwright
+
 playwright install chromium
 
 #### Установите репозиторий
