@@ -19,7 +19,9 @@ git clone https://github.com/Marsenie/sport_itmo.git
 
 #### Установите пакеты
 python -m venv venv
+
 source venv/bin/activate
+
 pip install -r requirements.txt
 
 #### Создайте файл .env на подобии env.txt и вставте в него всё необходимое
