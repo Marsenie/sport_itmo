@@ -1,20 +1,29 @@
 from states.reg_states import RegistrationStates
-from services.postgre_db import add_user_data, get_user_data, del_user_data
+from services.postgre_db import add_user_data_step_one, update_user_data_step_two, get_user_data, del_user_data
 from record.record import get_isu_and_name
 from services.crypto import encrypt_password
-from keyboards.builders import main_keyboard
+from keyboards.builders import main_keyboard, start_keyboard
 
 from aiogram.fsm.context import FSMContext
 from aiogram.filters import Command
 from aiogram import Router, types
 
 router = Router()
-    
+
+
+@router.message(Command("accept"))
+async def accept_command_start(message: types.Message):
+    await message.answer("Введи /reg, чтобы начать пользоваться\n"
+                         "/help - команды\n",
+                         reply_markup=start_keyboard)
+    if await get_user_data(message.from_user.id) == []:
+        await add_user_data_step_one(str(message.from_user.id), message.from_user.username)
+        
 # Обработчик команды /reg
 @router.message(Command('reg'))
 async def cmd_reg(message: types.Message, state: FSMContext):
-    if await get_user_data(message.from_user.id) != []:
-        return await message.answer("Вы уже указали все данные, если хотите их поменять, то сначала сотрите их /del")
+    if await get_user_data(message.from_user.id) == []:
+        return await message.answer("Сначала примите обработку персональных данных! /accept")
     await message.answer("Введите ваш email:")
     await state.set_state(RegistrationStates.waiting_for_email)
 
@@ -29,7 +38,7 @@ async def process_email(message: types.Message, state: FSMContext):
     # Сохраняем email в состоянии
     await state.update_data(email=email)
     
-    await message.answer("Теперь введите пароль:\nРЕКОМЕНДУЕТСЯ СМЕНИТЬ ПАРОЛЬ от my itmo, если вы где-то его ещё используете. Он хранится в защифрованном виде")
+    await message.answer("Теперь введите пароль:\n Он будет хранится в защифрованном виде")
     await state.set_state(RegistrationStates.waiting_for_password)
 
 # Обработчик ввода пароля
@@ -44,12 +53,12 @@ async def process_password(message: types.Message, state: FSMContext):
     await message.answer("Подождите, проверяем корректность данных.", reply_markup=main_keyboard)
     # Получаем информацию о пользователе
     user_id = str(message.from_user.id)
-    username = message.from_user.username or message.from_user.first_name or "Unknown"
+    username = message.from_user.username or message.from_user.first_name
     isu, name = await get_isu_and_name(email, password)
     await state.clear()
     if isu == "":
         await message.answer("Ошибка! Ваши данные не сохранены.")
         return
     # Вызываем вашу функцию для добавления пользователя
-    await add_user_data(user_id, email, password, username, isu, name)
+    await update_user_data_step_two(user_id, email, password, isu, name)
     await message.answer("Регистрация завершена! Ваши данные сохранены.")

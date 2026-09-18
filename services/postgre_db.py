@@ -1,14 +1,12 @@
 from config.settings_bd import bd_config
 from config.settings_admins import admins_config
 from services.crypto import encrypt_password
+from utils.logger import logger
 
 import random
 import asyncpg
 import asyncio
-import logging
 from typing import List, Optional, Dict
-
-logger = logging.getLogger(__name__)
 
 async def run_command(command : str, ans = False):
     # Подключение с параметрами
@@ -36,11 +34,11 @@ async def init_db():
                 id SERIAL PRIMARY KEY,
                 user_id BIGINT NOT NULL UNIQUE,
                 username VARCHAR(32) NOT NULL,
-                email VARCHAR(254) NOT NULL,
-                password VARCHAR(512) NOT NULL,
-                isu INT NOT NULL,
-                name VARCHAR(256) NOT NULL,
-                login_error BOOLEAN,
+                email VARCHAR(254),
+                password VARCHAR(512),
+                isu INT,
+                name VARCHAR(256),
+                login_error BOOLEAN DEFAULT FALSE,
                 date TIMESTAMP NOT NULL DEFAULT now(),
                 UNIQUE(user_id, email) ) ''')
 
@@ -57,7 +55,7 @@ async def init_db():
                     time_id SERIAL PRIMARY KEY,
                     name_time VARCHAR(8) NOT NULL UNIQUE)''')
 
-    # таблица со местами
+    # таблица с местами
     await run_command('''CREATE TABLE IF NOT EXISTS locations (
                     location_id SERIAL PRIMARY KEY,
                     location_name VARCHAR(16) NOT NULL UNIQUE,
@@ -91,7 +89,7 @@ async def init_db():
     # таблица с банами
     await run_command('''CREATE TABLE IF NOT EXISTS bans (
                     id SERIAL PRIMARY KEY,
-                    user_id BIGINT NOT NULL REFERENCES users(user_id),
+                    user_id BIGINT NOT NULL REFERENCES users(user_id) ON DELETE CASCADE,
                     reason_id BIGINT NOT NULL REFERENCES reasons(reason_id),
                     msg VARCHAR(4096) NOT NULL,
                     date TIMESTAMP NOT NULL DEFAULT now(),
@@ -116,7 +114,7 @@ async def init_db():
     await run_command('''CREATE TABLE IF NOT EXISTS tickets (
                     ticket_id SERIAL PRIMARY KEY,
                     admin_id BIGINT REFERENCES admins(admin_id),
-                    user_id BIGINT NOT NULL REFERENCES users(user_id),
+                    user_id BIGINT NOT NULL REFERENCES users(user_id) ON DELETE CASCADE,
                     topic VARCHAR(64) NOT NULL,
                     status_id BIGINT NOT NULL REFERENCES ticket_statuses(status_id),
                     feedback_score INT,
@@ -126,7 +124,7 @@ async def init_db():
     # таблица с сообщениями 
     await run_command('''CREATE TABLE IF NOT EXISTS ticket_msg (
                     id SERIAL PRIMARY KEY,
-                    ticket_id BIGINT NOT NULL REFERENCES tickets(ticket_id),
+                    ticket_id BIGINT NOT NULL REFERENCES tickets(ticket_id)  ON DELETE CASCADE,
                     msg VARCHAR(4096) NOT NULL,
                     is_send BOOLEAN NOT NULL DEFAULT False,
                     is_from_admin BOOLEAN NOT NULL,
@@ -195,28 +193,41 @@ async def init_db():
 async def get_command(command: str):
     try:
         rows = await run_command(command, ans = True)
+        logger.info(f"PSQL get_command: {command}")
         return [dict(row) for row in rows]
                 
     except Exception as e:
-        logger.error(f"Команда: {command}\nОшибка при получении данных: {e}")
+        logger.error(f"PSQL get_command: {command}\nОшибка при получении данных: {e}")
         return []
     
 async def add_command(command: str):
     try:
         await run_command(command)
+        logger.info(f"PSQL add_command: {command}")
         return True
       
     except Exception as e:
-        logger.error(f"Команда: {command}\nОшибка при получении данных: {e}")
+        logger.error(f"PSQL add_command: {command}\nОшибка при получении данных: {e}")
         return False
 
+async def update_command(command: str):
+    try:
+        await run_command(command)
+        logger.info(f"PSQL update_command: {command}")
+        return True
+      
+    except Exception as e:
+        logger.error(f"PSQL update_command: {command}\nОшибка при удалении данных: {e}")
+        return False
+    
 async def del_command(command: str):
     try:
         await run_command(command)
+        logger.info(f"PSQL del_command: {command}")
         return True
       
     except Exception as e:
-        logger.error(f"Команда: {command}\nОшибка при удалении данных: {e}")
+        logger.error(f"PSQL del_command: {command}\nОшибка при удалении данных: {e}")
         return False
 
 
@@ -224,6 +235,14 @@ async def del_command(command: str):
 async def add_user_data(user_id: int, email: str, crypto_password: str, username: str, isu: int, name: str) -> bool:
     """Добавить данные пользователя"""
     return await add_command(f"INSERT INTO users (user_id, email, password, username, isu, name, login_error) VALUES ({user_id}, '{email}', '{crypto_password}', '{username}', {isu}, '{name}', False)")
+
+async def add_user_data_step_one(user_id: int, username: str) -> bool:
+    """Добавить данные пользователя"""
+    return await add_command(f"INSERT INTO users (user_id, username) VALUES ({user_id}, '{username}')")
+
+async def update_user_data_step_two(user_id: int, email: str, crypto_password: str, isu: int, name: str) -> bool:
+    """Добавить данные пользователя"""
+    return await add_command(f"UPDATE users SET email = '{email}', password = '{crypto_password}', isu = {isu}, name = '{name}' WHERE user_id = {user_id}")
 
 async def login_error(user_id: int):
     try:
@@ -260,9 +279,8 @@ async def get_list_users():
 
 async def get_random_user_data():
     """Получить все данные пользователя"""
-    data = await get_command(f'SELECT * FROM users where login_error = false')
+    data = await get_command(f'SELECT * FROM users where login_error = false and password IS NOT NULL')
     return data[random.randint(0, (len(data) - 1))]
-
 
 async def del_user_data(user_id: int):
     """Удалить все данные пользователя"""

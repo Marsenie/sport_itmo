@@ -17,17 +17,18 @@ class MiddlewareAntiSpam(BaseMiddleware):
         self.ban_time = ban_time
         self.user_message_times = defaultdict(list)
         self.ban_storage = BanStorage("storage/ban.json")
+        self.comand = set(['/del', 'УДАЛИТЬ', 'start', 'accept'])
         #self.ban_storage.write_all()
         
         super().__init__()
 
     async def __call__(self, handler, message: types.Message, data: dict):
-        await self.ban_storage.update()
         self.banned_users = await self.ban_storage._read_all()
         current_time = time.time()
         user_id = str(message.from_user.id)
         msg = message.text.strip() if message.text else ""
-
+        if msg in self.comand:
+            return await handler(message, data)
         # Проверка бана
         if user_id in self.banned_users:
             if current_time < self.banned_users[user_id]:
