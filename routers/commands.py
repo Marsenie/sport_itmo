@@ -20,6 +20,6 @@ async def help_command_help(message: types.Message):
         "/reg - регитстрация\n"
         # "/support - сообщить о проблеме\n"
         "/record - запись на секции\n"
-        "unrec - отписаться от секции\n",
+        "/unrec - отписаться от секции\n",
         # "/del - удалить все данные о себе\n",
         reply_markup=main_keyboard)
